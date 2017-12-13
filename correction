@@ -191,3 +191,23 @@ SELECT   raison, count(inscrit) as envoyés
 FROM     ENTREPRISE LEFT JOIN PARTICIPANT USING (entr)
 GROUP BY raison
 HAVING   count(*) < 3
+
+
+-- Q.4.6.1. Entreprise ayants envoyé le plus de participants
+SELECT   raison,
+         COUNT(DISTINCT inscrit) as envoyés
+        
+FROM     ENTREPRISE JOIN PARTICIPANT USING(entr)
+                   
+GROUP BY raison
+ORDER BY envoyés DESC
+LIMIT    1
+
+-- Q.4.6.2. Entreprise ayants envoyé le plus de participants
+
+
+
+https://gist.github.com/laowantong/f2b9d98bee56ee6f6384c789d6d5ace2
+
+
+
