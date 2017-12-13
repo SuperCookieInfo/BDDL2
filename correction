@@ -1,0 +1,193 @@
+-- Q.1.1. Raison sociale et activité des entreprises, triées par activités.
+SELECT   raison, activité
+FROM     entreprise
+ORDER BY activité
+
+
+-- Q.1.2. Numéro des inscrits à la session CRUNGA.
+SELECT inscrit
+FROM   inscrire
+WHERE  sess = 'CRUNGA'
+
+
+-- Q.1.3. Nom des inscrits à la session CRUNGA. Avec jointure implicite.
+SELECT nom
+FROM   inscrire I, participant P
+WHERE  sess = 'CRUNGA'
+   AND I.inscrit = P.inscrit
+
+-- Q.1.3. Nom des inscrits à la session CRUNGA. Avec jointure explicite.
+SELECT nom
+FROM   inscrire JOIN participant USING (inscrit)
+WHERE  sess = 'CRUNGA'
+
+-- Q.1.3. Nom des inscrits à la session CRUNGA. Avec imbrication.
+SELECT nom
+FROM   participant
+WHERE  inscrit IN (
+           SELECT inscrit
+           FROM   inscrire
+           WHERE  sess = 'CRUNGA'
+       )
+
+
+-- Q.1.4. Nom des particuliers inscrits à la session CRUNGA.
+SELECT nom
+FROM   inscrire JOIN participant USING (inscrit)
+WHERE  sess = 'CRUNGA'
+   AND entr IS NULL
+
+
+-- Q.1.5. Raison sociale des entreprises ayant envoyé des participants. Avec jointure implicite.
+SELECT   DISTINCT raison
+FROM     entreprise E, participant P
+WHERE    E.entr = p.entr
+ORDER BY raison
+
+-- Q.1.5. Raison sociale des entreprises ayant envoyé des participants. Avec jointure explicite.
+SELECT   DISTINCT raison
+FROM     entreprise JOIN participant USING (entr)
+ORDER BY raison
+
+
+-- Q.1.6. Sessions d'août 84. MySQL.
+SELECT sess, intitulé, date_format(début, '%a %d') AS jour
+FROM   session
+WHERE  début BETWEEN '1984-08-01' AND '1984-08-31'
+
+
+-- Q.1.7. Inscrits de la veille d'une session. MySQL et PostgreSQL.
+SELECT nom, date AS "date d'inscription", sess, début
+FROM   participant JOIN inscrire USING (inscrit)
+                   JOIN session  USING (sess)
+WHERE début - date = 1
+
+
+-- Q.1.8. Raison des entreprises ayant même activité qu'une autre. Avec jointure implicite.
+SELECT DISTINCT A.raison, A.activité
+FROM entreprise A, entreprise B
+WHERE A.activité = B.activité
+  AND A.entr <> B.entr
+
+-- Q.1.8. Raison des entreprises ayant même activité qu'une autre. Avec jointure explicite.
+SELECT DISTINCT A.raison, A.activité
+FROM entreprise A JOIN entreprise B USING (activité)
+WHERE A.entr <> B.entr
+
+
+-- Q.2.1. Moyenne du prix d'une session.
+SELECT round(AVG(prix), 2) AS "prix moyen"
+FROM   session
+
+
+-- Q.2.2. Montant total des inscriptions perçues pour les sessions de 1985.
+SELECT SUM(nb_inscrits * prix) AS "montants inscriptions 1985"
+FROM   session
+WHERE  début BETWEEN '1985-01-01' and '1985-12-31'
+
+
+-- Q.2.3. Fourchette de la prime versée à l'animateur principal. Version MySQL.
+SELECT concat("[",min(prime),",",max(prime),"]") AS "fourchette"
+FROM session
+
+-- Q.3.1. Nombre de sessions selon leur durée. SQLite et MySQL.
+SELECT   durée, count(*) as sessions
+FROM     session
+GROUP BY durée
+
+
+-- Q.3.2. Nombre d'inscrits et d'animateurs par session.
+SELECT   sess, nb_inscrits, count(anim) as animateurs
+FROM     SESSION JOIN ANIMER USING(sess)
+GROUP BY sess
+
+
+-- Q.3.3. Sessions où le nombre d'inscrits n'a pas été renseigné correctement.
+SELECT    sess, nb_inscrits as 'valeur renseignée', count(*) as 'valeur calculée'
+FROM      SESSION JOIN INSCRIRE USING(sess)
+GROUP BY  sess
+HAVING    nb_inscrits <> count(*)
+
+
+-- Q.3.4. Les trois entreprises ayant rapporté le plus à la société de formation.
+SELECT   raison,
+         count(sess) as inscriptions,
+         count(distinct inscrit) as envoyés,
+         sum(prix) as montant
+FROM     ENTREPRISE JOIN PARTICIPANT USING(entr)
+                    JOIN INSCRIRE USING(inscrit)
+                    JOIN SESSION USING(sess)
+GROUP BY raison
+ORDER BY montant DESC
+LIMIT    3
+
+
+-- Q.3.5. Nombre de sessions organisées par année. MySQL.
+SELECT   year(début) AS année, count( * ) AS sessions
+FROM     session
+GROUP BY année
+
+
+-- Q.3.6. Nombre moyen de sessions par mois, sachant qu'il y a eu des sessions pendant 10 ans. SQLite.
+SELECT   strftime("%m", début) AS mois,
+         count(*) / 10.0 AS sessions
+FROM     session
+GROUP BY mois
+
+
+
+
+-- Q.4.1. Sessions dont aucun participant ne s'est inscrit à la même date qu'un autre. En comptant.
+SELECT   sess
+FROM     inscrire
+GROUP BY sess
+HAVING   COUNT(date) = COUNT(distinct date)
+
+-- Q.4.1. Sessions dont aucun participant ne s'est inscrit à la même date qu'un autre. Avec imbrication.
+SELECT DISTINCT sess
+FROM   inscrire
+WHERE  sess NOT IN (
+    SELECT sess
+    FROM   inscrire A JOIN inscrire B USING (date, sess)
+    WHERE  A.inscrit <> B.inscrit
+)
+
+
+-- Q.4.2. Entreprises n'ayant envoyé aucun participant. Avec LEFT JOIN.
+SELECT raison
+FROM entreprise LEFT JOIN participant USING (entr)
+WHERE participant.entr IS NULL
+
+
+-- Q.4.3. Entreprises n'ayant envoyé aucun participant. En imbriqué avec EXISTS.
+SELECT raison
+FROM entreprise E
+WHERE NOT EXISTS (
+  SELECT *
+  FROM participant P
+  WHERE E.entr = P.entr
+)
+
+
+-- Q.4.3. Entreprises n'ayant envoyé aucun participant. En imbriqué avec IN.
+SELECT raison
+FROM entreprise
+WHERE entr NOT IN (
+  SELECT entr
+  FROM participant
+  WHERE entr IS NOT NULL
+)
+
+
+-- Q.4.4. Entreprises ayant envoyé plus de trois participants.
+SELECT   raison, count(*) as envoyés
+FROM     ENTREPRISE JOIN PARTICIPANT USING (entr)
+GROUP BY raison
+HAVING   count(*) > 3
+
+
+-- Q.4.5. Entreprises ayant envoyé moins de trois participants.
+SELECT   raison, count(inscrit) as envoyés
+FROM     ENTREPRISE LEFT JOIN PARTICIPANT USING (entr)
+GROUP BY raison
+HAVING   count(*) < 3
